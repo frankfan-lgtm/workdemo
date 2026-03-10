@@ -1,10 +1,14 @@
 """
 豆包联网搜索数据源
-通过 MCP 协议调用豆包的联网搜索能力，支持文搜文、文搜图、图搜图
-Demo 版本使用模拟数据，生产环境替换为真实 MCP 调用
+通过火山方舟 Responses API 内置的 web_search 工具进行联网搜索
+API 不可用时降级到模拟数据
 """
 
+import logging
+import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -16,7 +20,95 @@ class WebSearchResult:
     source: str = "doubao_web"
 
 
-# 模拟的联网搜索结果
+# ============================================================
+# 真实联网搜索（火山方舟 Responses API + web_search 工具）
+# ============================================================
+
+async def _search_web_llm(query: str, intent: str = "通用") -> list[WebSearchResult] | None:
+    """
+    通过火山方舟 Responses API 的内置 web_search 工具进行联网搜索
+    返回 None 表示调用失败
+    """
+    from agent.llm import chat_completion, extract_text_from_response, ARK_API_KEY
+
+    if not ARK_API_KEY:
+        return None
+
+    search_prompt = (
+        f"我正在进行{intent}方向的AI图像创作，需要搜索参考素材。"
+        f"请搜索：{query}\n"
+        f"找到相关的图片素材、设计趋势、教程或灵感参考。"
+        f"对每个结果，请给出标题、链接和简短描述。"
+    )
+
+    messages = [
+        {
+            "role": "user",
+            "content": [{"type": "input_text", "text": search_prompt}],
+        },
+    ]
+    tools = [{"type": "web_search", "max_keyword": 3}]
+
+    try:
+        resp = await chat_completion(messages, tools=tools, temperature=0.3)
+        text = extract_text_from_response(resp)
+        if not text:
+            return None
+
+        # 解析 LLM 返回的文本，提取搜索结果
+        results = _parse_web_results(text)
+        return results if results else None
+
+    except Exception as e:
+        logger.warning(f"联网搜索失败: {e}")
+        return None
+
+
+def _parse_web_results(text: str) -> list[WebSearchResult]:
+    """从 LLM 联网搜索的文本回复中提取结构化结果"""
+    results = []
+
+    # 尝试按段落分割，每段作为一个结果
+    # 匹配常见格式：标题 + URL + 描述
+    url_pattern = re.compile(r'https?://[^\s\)）\]]+')
+    paragraphs = re.split(r'\n\n+|\n(?=\d+[\.\、])', text)
+
+    for para in paragraphs:
+        para = para.strip()
+        if not para or len(para) < 10:
+            continue
+
+        urls = url_pattern.findall(para)
+        url = urls[0] if urls else ""
+
+        # 提取标题（第一行或加粗文字）
+        lines = para.split('\n')
+        title_line = lines[0].strip()
+        # 清理 markdown 格式
+        title = re.sub(r'[\*\#\d+\.\、\[\]]+', '', title_line).strip()
+        if not title:
+            continue
+
+        # 剩余文字作为描述
+        snippet = ' '.join(lines[1:]).strip() if len(lines) > 1 else para
+        snippet = re.sub(r'https?://[^\s]+', '', snippet).strip()
+        snippet = snippet[:200]
+
+        if title:
+            results.append(WebSearchResult(
+                title=title[:100],
+                url=url,
+                snippet=snippet,
+                image_url=f"https://picsum.photos/seed/{hash(title) % 10000}/400/400",
+            ))
+
+    return results[:6]  # 最多返回6条
+
+
+# ============================================================
+# 模拟数据（兜底）
+# ============================================================
+
 MOCK_WEB_RESULTS = {
     "电商": [
         WebSearchResult(
@@ -111,23 +203,23 @@ MOCK_WEB_RESULTS = {
 }
 
 
-async def search_web(query: str, intent: str = "通用") -> list[WebSearchResult]:
-    """
-    豆包联网搜索
-    Demo: 返回模拟数据
-    生产环境: 通过 MCP 协议调用豆包联网搜索 API
-
-    MCP 接入方式（生产环境）:
-    1. 安装: pip install volcenginesdkarkruntime
-    2. 配置 ARK_API_KEY 环境变量
-    3. 通过 Streamable HTTP 连接豆包 MCP Server
-       endpoint: https://mcp.doubao.com/sse (示例)
-    4. 调用 tools/call: web_search, image_search 等工具
-    """
+def _search_web_mock(query: str, intent: str = "通用") -> list[WebSearchResult]:
+    """模拟搜索兜底"""
     results = MOCK_WEB_RESULTS.get(intent, MOCK_WEB_RESULTS["通用"])
-    # 根据 query 做简单的相关性过滤（demo简化版）
     filtered = [r for r in results if any(
         kw in r.title or kw in r.snippet
         for kw in query.replace("，", " ").replace(",", " ").split()
     )]
     return filtered if filtered else results
+
+
+# ============================================================
+# 统一入口
+# ============================================================
+
+async def search_web(query: str, intent: str = "通用") -> list[WebSearchResult]:
+    """联网搜索：优先真实API，失败降级到模拟数据"""
+    results = await _search_web_llm(query, intent)
+    if results:
+        return results
+    return _search_web_mock(query, intent)

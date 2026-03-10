@@ -6,6 +6,9 @@
 from dataclasses import asdict
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()  # 加载 .env 文件中的环境变量
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -39,8 +42,8 @@ async def chat(req: ChatRequest):
     2. 路由搜索
     3. 返回结果
     """
-    # Step 1: 意图分析
-    intent = analyze_intent(req.message, req.context)
+    # Step 1: 意图分析（async，支持 LLM 调用）
+    intent = await analyze_intent(req.message, req.context)
 
     if not intent.need_search:
         return {
