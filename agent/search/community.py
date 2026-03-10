@@ -2,6 +2,7 @@
 社区灵感搜索
 搜索其他用户在即梦社区发布的优质创作
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
 

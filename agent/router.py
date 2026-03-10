@@ -2,6 +2,7 @@
 搜索路由器
 根据意图分析结果，并行调度多个搜索源，汇总并排序结果
 """
+from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field

@@ -3,10 +3,12 @@
 通过火山方舟 Responses API 内置的 web_search 工具进行联网搜索
 API 不可用时降级到模拟数据
 """
+from __future__ import annotations
 
 import logging
 import re
 from dataclasses import dataclass
+from typing import Optional, List
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ class WebSearchResult:
 # 真实联网搜索（火山方舟 Responses API + web_search 工具）
 # ============================================================
 
-async def _search_web_llm(query: str, intent: str = "通用") -> list[WebSearchResult] | None:
+async def _search_web_llm(query: str, intent: str = "通用") -> Optional[List[WebSearchResult]]:
     """
     通过火山方舟 Responses API 的内置 web_search 工具进行联网搜索
     返回 None 表示调用失败

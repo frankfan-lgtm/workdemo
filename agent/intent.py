@@ -3,10 +3,12 @@
 根据用户输入判断：1) 是否需要搜索 2) 应该搜索哪些源 3) 搜索意图分类
 支持两种模式：LLM（火山方舟 deepseek-v3）和规则兜底
 """
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class CreativeIntent(str, Enum):
 class IntentResult:
     need_search: bool = False
     creative_intent: CreativeIntent = CreativeIntent.GENERAL
-    search_sources: list[SearchSource] = field(default_factory=list)
+    search_sources: List[SearchSource] = field(default_factory=list)
     search_query: str = ""
     reasoning: str = ""
 
@@ -88,7 +90,7 @@ INTENT_SYSTEM_PROMPT = """你是即梦AI创作助手的意图分析模块。你�
 6. 社区灵感适合：找灵感、看别人怎么做、热门作品"""
 
 
-async def analyze_intent_llm(user_input: str, context: str = "") -> IntentResult | None:
+async def analyze_intent_llm(user_input: str, context: str = "") -> Optional[IntentResult]:
     """
     使用火山方舟 LLM 进行意图识别
     返回 None 表示 LLM 调用失败，应降级到规则引擎
@@ -197,7 +199,7 @@ def analyze_intent_rules(user_input: str, context: str = "") -> IntentResult:
 
     result.need_search = True
 
-    intent_scores: dict[CreativeIntent, int] = {}
+    intent_scores: Dict[CreativeIntent, int] = {}
     for intent, keywords in INTENT_KEYWORDS.items():
         score = sum(1 for kw in keywords if kw in combined)
         if score > 0:

@@ -2,6 +2,7 @@
 即梦 AI 创作助手 - 搜索 Agent Demo
 主入口：FastAPI 服务
 """
+from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path

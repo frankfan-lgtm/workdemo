@@ -3,6 +3,7 @@ RAG 优质数据库搜索
 模拟从已建立的优质训练数据 RAG 库中搜索相关素材
 包含高质量图片+caption，用于启发创作灵感
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
 

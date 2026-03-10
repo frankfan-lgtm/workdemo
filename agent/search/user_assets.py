@@ -2,6 +2,7 @@
 用户资产搜索
 搜索用户在即梦平台生成、下载、收藏的图片
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
 

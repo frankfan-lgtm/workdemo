@@ -2,9 +2,11 @@
 火山方舟 API 客户端
 使用 Responses API 格式，支持 web_search 等内置工具
 """
+from __future__ import annotations
 
 import json
 import os
+from typing import Optional, List
 
 import httpx
 
@@ -12,7 +14,7 @@ ARK_BASE_URL = os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/
 ARK_API_KEY = os.getenv("ARK_API_KEY", "")
 ARK_MODEL = os.getenv("ARK_MODEL", "deepseek-v3-2-251201")
 
-_client: httpx.AsyncClient | None = None
+_client: Optional[httpx.AsyncClient] = None
 
 
 def _get_client() -> httpx.AsyncClient:
@@ -24,7 +26,7 @@ def _get_client() -> httpx.AsyncClient:
 
 async def chat_completion(
     messages: list[dict],
-    tools: list[dict] | None = None,
+    tools: Optional[List[dict]] = None,
     temperature: float = 0.3,
 ) -> dict:
     """
@@ -75,7 +77,7 @@ def extract_text_from_response(response: dict) -> str:
     return "\n".join(texts)
 
 
-def extract_json_from_response(response: dict) -> dict | None:
+def extract_json_from_response(response: dict) -> Optional[dict]:
     """从 Responses API 返回值中提取 JSON 对象"""
     text = extract_text_from_response(response)
     # 尝试从 markdown code block 中提取
